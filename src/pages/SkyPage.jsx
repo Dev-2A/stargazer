@@ -1,20 +1,15 @@
 import AppShell from "../components/layout/AppShell";
+import SkyCanvas from "../components/sky/SkyCanvas";
 
 function SkyPage() {
   return (
     <AppShell>
-      <div className="min-h-[calc(100dvh-3.5rem)] lg:min-h-screen bg-linear-to-b from-night-900 to-night-950 flex items-center justify-center px-6 py-12">
-        <div className="text-center">
-          <div className="text-6xl mb-4">🌌</div>
-          <h1 className="text-4xl font-bold tracking-tight text-astral-100">
-            Stargazer
-          </h1>
-          <p className="mt-3 text-sm text-astral-300/80">
-            위치와 시간으로 그려내는 별의 풍경
-          </p>
-          <div className="mt-12 text-xs text-night-300">
-            🚧 Step 4부터 이 자리에 Three.js 천구가 들어갑니다
-          </div>
+      <div className="relative h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden bg-linear-to-b from-night-900 to-night-950">
+        <SkyCanvas />
+
+        {/* 임시 오버레이 — Step 13~15에서 별/별자리/시간 정보로 교체 예정 */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-night-900/60 backdrop-blur border border-night-700 text-[11px] text-astral-300/80 pointer-events-none">
+          🌌 Three.js 천구 연결됨 · Step 4
         </div>
       </div>
     </AppShell>
