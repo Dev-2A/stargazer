@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+@theme {
+  /* === 🌟 Astral · 파스텔 블루 액센트 === */
+  --color-astral-50: #f0f7ff;
+  --color-astral-100: #e0efff;
+  --color-astral-200: #b9deff;
+  --color-astral-300: #7cc4ff;
+  --color-astral-400: #36a6ff;
+  --color-astral-500: #0c8aff;
+  --color-astral-600: #006fee;
+  --color-astral-700: #0058cc;
+  --color-astral-800: #0049a8;
+  --color-astral-900: #003e8c;
+  --color-astral-950: #002757;
+
+  /* === 🌌 Night · 천구 남청 다크 배경 === */
+  --color-night-50: #eef1fa;
+  --color-night-100: #d9e0f1;
+  --color-night-200: #b8c4e4;
+  --color-night-300: #8da0d1;
+  --color-night-400: #6679bc;
+  --color-night-500: #4a5da8;
+  --color-night-600: #3a4a8e;
+  --color-night-700: #303d72;
+  --color-night-800: #28335c;
+  --color-night-900: #1a2347;
+  --color-night-950: #0a1128;
+
+  /* === 폰트 패밀리 === */
+  --font-sans:
+    "Pretendard", "Pretendard Variable", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+}
+
 html,
 body,
 #root {
@@ -8,13 +41,25 @@ body,
 }
 
 body {
-  font-family:
-    "Pretendard",
-    "Pretendard Variable",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-night-950);
+  color: var(--color-night-100);
+}
+
+/* 다크 천구에선 기본 스크롤바도 어둡게 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-night-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-night-700);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-night-600);
 }
