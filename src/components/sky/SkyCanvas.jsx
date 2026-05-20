@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 function SkyCanvas() {
   const containerRef = useRef(null);
@@ -11,30 +12,50 @@ function SkyCanvas() {
     // === 1. Scene ===
     const scene = new THREE.Scene();
 
-    // === 2. Camera — 관측자 시점 (천구 중심에서 바라보기) ===
+    // === 2. Camera — 관측자 시점 ===
     const camera = new THREE.PerspectiveCamera(
-      65, // FOV
+      65,
       container.clientWidth / container.clientHeight,
-      0.1, // near
-      1000, // far
+      0.1,
+      1000,
     );
-    camera.position.set(0, 0, 0.1); // 거의 원점 — 천구 내부
+    // 카메라를 천구 중심 근처에 두고, target도 원점에 두면
+    // OrbitControls 회전 시 카메라가 거의 제자리에서 시선만 회전함
+    camera.position.set(0, 0, 0.001);
 
     // === 3. Renderer ===
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true, // 투명 캔버스 → 부모의 CSS 그라데이션이 비침
-    });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 레티나 대응, 2 이상은 성능 낭비
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // === 4. 가상 천구 — Step 7부터 별이 박힐 자리 ===
-    // BackSide: 카메라가 구 내부에 있으므로 안쪽 면만 렌더
+    // === 4. OrbitControls — 시선 회전 ===
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0); // 천구 중심을 바라봄
+    controls.enableDamping = true; // 부드러운 관성
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.4; // 천천히 — 별 관측 느낌
+    controls.enableZoom = false; // 휠은 따로 FOV 줌으로 처리
+    controls.enablePan = false; // 관측자는 한 자리에 고정
+    controls.minPolarAngle = 0.01; // 천정 근방 gimbal 회피
+    controls.maxPolarAngle = Math.PI - 0.01; // 천저 근방 gimbal 회피
+
+    // === 5. 휠 → FOV 줌 (30°~90°) ===
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const delta = Math.sign(e.deltaY) * 2;
+      camera.fov = THREE.MathUtils.clamp(camera.fov + delta, 30, 90);
+      camera.updateProjectionMatrix();
+    };
+    renderer.domElement.addEventListener("wheel", handleWheel, {
+      passive: false,
+    });
+
+    // === 6. 가상 천구 (와이어프레임) — Step 7부터 별이 박힐 자리 ===
     const sphereGeo = new THREE.SphereGeometry(100, 48, 24);
     const sphereMat = new THREE.MeshBasicMaterial({
-      color: 0x7cc4ff, // astral-300
+      color: 0x7cc4ff,
       wireframe: true,
       transparent: true,
       opacity: 0.12,
@@ -43,11 +64,11 @@ function SkyCanvas() {
     const sphere = new THREE.Mesh(sphereGeo, sphereMat);
     scene.add(sphere);
 
-    // === 5. Resize 대응 ===
+    // === 7. Resize 대응 ===
     const handleResize = () => {
       const w = container.clientWidth;
       const h = container.clientHeight;
-      if (w === 0 || h === 0) return; // 숨겨진 상태 방어
+      if (w === 0 || h === 0) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -55,21 +76,21 @@ function SkyCanvas() {
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(container);
 
-    // === 6. 애니메이션 루프 ===
+    // === 8. 애니메이션 루프 ===
     let animationId;
     const animate = () => {
       animationId = requestAnimationFrame(animate);
-      // 매우 느린 회전 — "루프가 살아 있다" 시각 피드백용
-      // Step 9에서 관측자 시간·위치 기반 회전으로 대체될 자리
-      sphere.rotation.y += 0.0003;
+      controls.update(); // damping 적용에 필수
       renderer.render(scene, camera);
     };
     animate();
 
-    // === 7. Cleanup — 언마운트 시 자원 해제 ===
+    // === 9. Cleanup ===
     return () => {
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("wheel", handleWheel);
+      controls.dispose();
       renderer.domElement.remove();
       sphereGeo.dispose();
       sphereMat.dispose();
