@@ -3,6 +3,16 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { loadStars } from "../../lib/stars";
 import { createStarField } from "./createStarField";
+import { createHorizon } from "./createHorizon";
+import {
+  equatorialToHorizontalQuaternion,
+  equatorialToVec3,
+  altAzFromVec3,
+  localSiderealTime,
+} from "../../lib/celestial";
+
+// ⚠️ 임시 하드코딩 — Step 9에서 Zustand 관측자 상태로 대체
+const OBSERVER = { lat: 37.5665, lon: 126.978, name: "서울" };
 
 function SkyCanvas() {
   const containerRef = useRef(null);
@@ -14,19 +24,24 @@ function SkyCanvas() {
     let disposed = false;
     let starField = null;
 
-    // === Scene ===
-    const scene = new THREE.Scene();
+    // 관측자·시간 → 천구 회전
+    const now = new Date();
+    const rotation = equatorialToHorizontalQuaternion(
+      now,
+      OBSERVER.lat,
+      OBSERVER.lon,
+    );
 
-    // === Camera ===
+    // === Scene / Camera / Renderer ===
+    const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
       65,
       container.clientWidth / container.clientHeight,
       0.1,
       1000,
     );
-    camera.position.set(0, 0, 0.001);
+    camera.position.set(0, 0, 0.001); // 초기 시선: -Z = 남쪽
 
-    // === Renderer ===
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -55,13 +70,29 @@ function SkyCanvas() {
       passive: false,
     });
 
-    // === 별 로드 + 필드 생성 ===
+    // === 지평선 (월드 고정) ===
+    const horizon = createHorizon();
+    scene.add(horizon.group);
+
+    // === 별 로드 + 회전 적용 ===
     loadStars()
       .then(({ meta, stars }) => {
         if (disposed) return;
         starField = createStarField(stars, { magLimit: meta.magLimit });
+        starField.points.quaternion.copy(rotation); // 천구 전체 회전
         scene.add(starField.points);
-        console.log(`[Stargazer] ${stars.length}개 별 렌더링 완료`);
+
+        // 검증: Polaris 고도가 위도와 거의 같아야 함
+        const pe = equatorialToVec3(2.5303, 89.264, 100);
+        const pv = new THREE.Vector3(pe.x, pe.y, pe.z).applyQuaternion(
+          rotation,
+        );
+        const { alt, az } = altAzFromVec3(pv);
+        const lst = localSiderealTime(now, OBSERVER.lon);
+        console.log(
+          `[Stargazer] ${OBSERVER.name} 관측 · LST ${lst.toFixed(2)}h · ` +
+            `Polaris 고도 ${alt.toFixed(1)}° (위도 ${OBSERVER.lat}°), 방위 ${az.toFixed(1)}°`,
+        );
       })
       .catch((err) => console.error("[Stargazer] 별 렌더링 실패:", err));
 
@@ -93,6 +124,8 @@ function SkyCanvas() {
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("wheel", handleWheel);
       controls.dispose();
+      scene.remove(horizon.group);
+      horizon.dispose();
       if (starField) {
         scene.remove(starField.points);
         starField.dispose();
