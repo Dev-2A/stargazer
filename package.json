@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:stars": "node scripts/build-stars.mjs"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",

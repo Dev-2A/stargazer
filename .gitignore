@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# HYG 빌드 스크립트 캐시 (대용량 raw CSV)
+scripts/.cache/
