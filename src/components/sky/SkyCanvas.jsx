@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { loadStars } from "../../lib/stars";
+import { createStarField } from "./createStarField";
 
 function SkyCanvas() {
   const containerRef = useRef(null);
@@ -10,17 +11,8 @@ function SkyCanvas() {
     const container = containerRef.current;
     if (!container) return;
 
-    // Step 6 스모크 테스트 — Step 7에서 실제 렌더링으로 대체
-    loadStars()
-      .then(({ meta, stars }) => {
-        const brightest = stars[0];
-        const name = brightest.name || `HIP ${brightest.hip}`;
-        console.log(
-          `[Stargazer] ${stars.length}개 별 로드 (mag ≤ ${meta.magLimit}, ` +
-            `가장 밝은 별: ${name}, mag ${brightest.mag})`,
-        );
-      })
-      .catch((err) => console.error("[Stargazer] 별 데이터 로드 실패:", err));
+    let disposed = false;
+    let starField = null;
 
     // === Scene ===
     const scene = new THREE.Scene();
@@ -63,17 +55,15 @@ function SkyCanvas() {
       passive: false,
     });
 
-    // === 가상 천구 (와이어프레임) ===
-    const sphereGeo = new THREE.SphereGeometry(100, 48, 24);
-    const sphereMat = new THREE.MeshBasicMaterial({
-      color: 0x7cc4ff,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.12,
-      side: THREE.BackSide,
-    });
-    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
-    scene.add(sphere);
+    // === 별 로드 + 필드 생성 ===
+    loadStars()
+      .then(({ meta, stars }) => {
+        if (disposed) return;
+        starField = createStarField(stars, { magLimit: meta.magLimit });
+        scene.add(starField.points);
+        console.log(`[Stargazer] ${stars.length}개 별 렌더링 완료`);
+      })
+      .catch((err) => console.error("[Stargazer] 별 렌더링 실패:", err));
 
     // === Resize ===
     const handleResize = () => {
@@ -98,13 +88,16 @@ function SkyCanvas() {
 
     // === Cleanup ===
     return () => {
+      disposed = true;
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("wheel", handleWheel);
       controls.dispose();
+      if (starField) {
+        scene.remove(starField.points);
+        starField.dispose();
+      }
       renderer.domElement.remove();
-      sphereGeo.dispose();
-      sphereMat.dispose();
       renderer.dispose();
     };
   }, []);
