@@ -8,11 +8,8 @@ import {
   equatorialToHorizontalQuaternion,
   equatorialToVec3,
   altAzFromVec3,
-  localSiderealTime,
 } from "../../lib/celestial";
-
-// ⚠️ 임시 하드코딩 — Step 9에서 Zustand 관측자 상태로 대체
-const OBSERVER = { lat: 37.5665, lon: 126.978, name: "서울" };
+import { useObserverStore } from "../../store/observerStore";
 
 function SkyCanvas() {
   const containerRef = useRef(null);
@@ -23,14 +20,6 @@ function SkyCanvas() {
 
     let disposed = false;
     let starField = null;
-
-    // 관측자·시간 → 천구 회전
-    const now = new Date();
-    const rotation = equatorialToHorizontalQuaternion(
-      now,
-      OBSERVER.lat,
-      OBSERVER.lon,
-    );
 
     // === Scene / Camera / Renderer ===
     const scene = new THREE.Scene();
@@ -74,25 +63,36 @@ function SkyCanvas() {
     const horizon = createHorizon();
     scene.add(horizon.group);
 
-    // === 별 로드 + 회전 적용 ===
+    // === 관측자/시간 → 천구 회전 적용 ===
+    const applyRotation = () => {
+      if (!starField) return;
+      const { observer, timeMs } = useObserverStore.getState();
+      const rotation = equatorialToHorizontalQuaternion(
+        new Date(timeMs),
+        observer.lat,
+        observer.lon,
+      );
+      starField.points.quaternion.copy(rotation);
+
+      // 디버그: Polaris 고도/방위 (위치 바뀌면 함께 변함)
+      const pe = equatorialToVec3(2.5303, 89.264, 100);
+      const pv = new THREE.Vector3(pe.x, pe.y, pe.z).applyQuaternion(rotation);
+      const { alt, az } = altAzFromVec3(pv);
+      console.log(
+        `[Stargazer] ${observer.name} · Polaris 고도 ${alt.toFixed(1)}° 방위 ${az.toFixed(1)}°`,
+      );
+    };
+
+    // 스토어 변화 구독 — 컴포넌트 리렌더 없이 회전만 갱신
+    const unsubscribe = useObserverStore.subscribe(applyRotation);
+
+    // === 별 로드 ===
     loadStars()
       .then(({ meta, stars }) => {
         if (disposed) return;
         starField = createStarField(stars, { magLimit: meta.magLimit });
-        starField.points.quaternion.copy(rotation); // 천구 전체 회전
         scene.add(starField.points);
-
-        // 검증: Polaris 고도가 위도와 거의 같아야 함
-        const pe = equatorialToVec3(2.5303, 89.264, 100);
-        const pv = new THREE.Vector3(pe.x, pe.y, pe.z).applyQuaternion(
-          rotation,
-        );
-        const { alt, az } = altAzFromVec3(pv);
-        const lst = localSiderealTime(now, OBSERVER.lon);
-        console.log(
-          `[Stargazer] ${OBSERVER.name} 관측 · LST ${lst.toFixed(2)}h · ` +
-            `Polaris 고도 ${alt.toFixed(1)}° (위도 ${OBSERVER.lat}°), 방위 ${az.toFixed(1)}°`,
-        );
+        applyRotation(); // 초기 적용
       })
       .catch((err) => console.error("[Stargazer] 별 렌더링 실패:", err));
 
@@ -120,6 +120,7 @@ function SkyCanvas() {
     // === Cleanup ===
     return () => {
       disposed = true;
+      unsubscribe();
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("wheel", handleWheel);
