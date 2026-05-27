@@ -5,7 +5,7 @@ import ObserverDebugPanel from "../components/controls/ObserverDebugPanel";
 function SkyPage() {
   return (
     <AppShell>
-      <div className="relative h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden bg-gradient-to-b from-night-900 to-night-950">
+      <div className="relative h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden bg-linear-to-b from-night-900 to-night-950">
         <SkyCanvas />
         <ObserverDebugPanel />
 

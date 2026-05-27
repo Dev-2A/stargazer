@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { loadStars } from "../../lib/stars";
+import { loadConstellations } from "../../lib/constellations";
 import { createStarField } from "./createStarField";
+import { createConstellationLines } from "./createConstellationLines";
 import { createHorizon } from "./createHorizon";
 import {
   equatorialToHorizontalQuaternion,
@@ -20,6 +22,7 @@ function SkyCanvas() {
 
     let disposed = false;
     let starField = null;
+    let constLines = null;
 
     // === Scene / Camera / Renderer ===
     const scene = new THREE.Scene();
@@ -29,7 +32,7 @@ function SkyCanvas() {
       0.1,
       1000,
     );
-    camera.position.set(0, 0, 0.001); // 초기 시선: -Z = 남쪽
+    camera.position.set(0, 0, 0.001);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -59,22 +62,25 @@ function SkyCanvas() {
       passive: false,
     });
 
-    // === 지평선 (월드 고정) ===
+    // === 지평선 (월드 고정, 그룹 밖) ===
     const horizon = createHorizon();
     scene.add(horizon.group);
 
-    // === 관측자/시간 → 천구 회전 적용 ===
+    // === 천구 그룹 (별 + 별자리 선이 함께 회전) ===
+    const celestialGroup = new THREE.Group();
+    scene.add(celestialGroup);
+
+    // === 관측자/시간 → 그룹 회전 ===
     const applyRotation = () => {
-      if (!starField) return;
       const { observer, timeMs } = useObserverStore.getState();
       const rotation = equatorialToHorizontalQuaternion(
         new Date(timeMs),
         observer.lat,
         observer.lon,
       );
-      starField.points.quaternion.copy(rotation);
+      celestialGroup.quaternion.copy(rotation);
 
-      // 디버그: Polaris 고도/방위 (위치 바뀌면 함께 변함)
+      // 디버그: Polaris 고도/방위
       const pe = equatorialToVec3(2.5303, 89.264, 100);
       const pv = new THREE.Vector3(pe.x, pe.y, pe.z).applyQuaternion(rotation);
       const { alt, az } = altAzFromVec3(pv);
@@ -82,8 +88,7 @@ function SkyCanvas() {
         `[Stargazer] ${observer.name} · Polaris 고도 ${alt.toFixed(1)}° 방위 ${az.toFixed(1)}°`,
       );
     };
-
-    // 스토어 변화 구독 — 컴포넌트 리렌더 없이 회전만 갱신
+    applyRotation(); // 그룹은 처음부터 존재 → 즉시 적용 가능
     const unsubscribe = useObserverStore.subscribe(applyRotation);
 
     // === 별 로드 ===
@@ -91,10 +96,20 @@ function SkyCanvas() {
       .then(({ meta, stars }) => {
         if (disposed) return;
         starField = createStarField(stars, { magLimit: meta.magLimit });
-        scene.add(starField.points);
-        applyRotation(); // 초기 적용
+        celestialGroup.add(starField.points);
+        console.log(`[Stargazer] ${stars.length}개 별 렌더링`);
       })
-      .catch((err) => console.error("[Stargazer] 별 렌더링 실패:", err));
+      .catch((err) => console.error("[Stargazer] 별 로드 실패:", err));
+
+    // === 별자리 선 로드 ===
+    loadConstellations()
+      .then(({ meta, constellations }) => {
+        if (disposed) return;
+        constLines = createConstellationLines(constellations);
+        celestialGroup.add(constLines.lines);
+        console.log(`[Stargazer] ${meta.count}개 별자리 선 렌더링`);
+      })
+      .catch((err) => console.error("[Stargazer] 별자리 로드 실패:", err));
 
     // === Resize ===
     const handleResize = () => {
@@ -128,9 +143,14 @@ function SkyCanvas() {
       scene.remove(horizon.group);
       horizon.dispose();
       if (starField) {
-        scene.remove(starField.points);
+        celestialGroup.remove(starField.points);
         starField.dispose();
       }
+      if (constLines) {
+        celestialGroup.remove(constLines.lines);
+        constLines.dispose();
+      }
+      scene.remove(celestialGroup);
       renderer.domElement.remove();
       renderer.dispose();
     };

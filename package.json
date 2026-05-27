@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:stars": "node scripts/build-stars.mjs"
+    "build:stars": "node scripts/build-stars.mjs",
+    "build:constellations": "node scripts/build-constellations.mjs",
+    "build:data": "npm run build:stars && npm run build:constellations"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",
