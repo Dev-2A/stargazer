@@ -1,3 +1,6 @@
+import { getConstellationName } from "../data/constellationNames";
+import { getConstellationInfo } from "../data/constellationInfo";
+
 let cache = null;
 
 /**
@@ -16,4 +19,15 @@ export async function loadConstellations() {
   }
   cache = await res.json();
   return cache;
+}
+
+/**
+ * 약어로 이름 + 상세정보를 한 번에 조회.
+ * @param {string} id - 3글자 약어 (예: 'Ori')
+ * @returns {{ id: string, ko: string, la: string, info: object|null, hasInfo: boolean }}
+ */
+export function getConstellationDetail(id) {
+  const { ko, la } = getConstellationName(id);
+  const info = getConstellationInfo(id);
+  return { id, ko, la, info, hasInfo: info !== null };
 }
