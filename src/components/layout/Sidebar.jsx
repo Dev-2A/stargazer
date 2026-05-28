@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, MapPin, Clock, Star, Info } from "lucide-react";
+import { Sparkles, Clock, Star, Info } from "lucide-react";
+import LocationInput from "../controls/LocationInput";
 
-// GitHub 마크 (lucide-react가 브랜드 아이콘 제거해서 인라인 SVG로)
 function GithubMark({ size = 12 }) {
   return (
     <svg
@@ -21,8 +21,7 @@ const NAV_ITEMS = [
   { to: "/about", label: "소개", icon: Info },
 ];
 
-const PLACEHOLDER_SECTIONS = [
-  { icon: MapPin, label: "위치", hint: "Step 14에서 도시 자동완성" },
+const PLACEHOLDERS = [
   { icon: Clock, label: "시간", hint: "Step 15에서 슬라이더 + 피커" },
   { icon: Star, label: "즐겨찾기", hint: "Step 16에서 IndexedDB 저장" },
 ];
@@ -74,12 +73,15 @@ function Sidebar({ onNavigate }) {
 
       <div className="mx-4 h-px bg-night-800" />
 
-      {/* 향후 컨트롤 자리 - 플레이스홀더 */}
-      <div className="px-3 py-4 space-y-2 flex-1 overflow-y-auto">
-        <p className="px-3 mb-2 text-[10px] uppercase tracking-wider text-night-500 font-semibold">
+      {/* 관측 컨트롤 */}
+      <div className="px-3 py-4 space-y-3 flex-1 overflow-y-auto">
+        <p className="px-3 text-[10px] uppercase tracking-wider text-night-500 font-semibold">
           관측 컨트롤
         </p>
-        {PLACEHOLDER_SECTIONS.map(({ icon: Icon, label, hint }) => (
+
+        <LocationInput />
+
+        {PLACEHOLDERS.map(({ icon: Icon, label, hint }) => (
           <div
             key={label}
             className="px-3 py-3 rounded-lg border border-dashed border-night-700 bg-night-950/40"
