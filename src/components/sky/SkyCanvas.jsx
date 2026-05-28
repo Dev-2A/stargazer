@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { loadStars } from "../../lib/stars";
@@ -13,8 +13,19 @@ import {
 import { useObserverStore } from "../../store/observerStore";
 import { useSelectionStore } from "../../store/selectionStore";
 
-function SkyCanvas() {
+const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
   const containerRef = useRef(null);
+  const sceneRef = useRef(null); // 캡처용 { renderer, scene, camera }
+
+  // 부모에 캡처 기능 노출
+  useImperativeHandle(ref, () => ({
+    captureCanvas() {
+      const s = sceneRef.current;
+      if (!s) return null;
+      s.renderer.render(s.scene, s.camera); // 캡처 직전 강제 렌더 (버퍼 보장)
+      return s.renderer.domElement;
+    },
+  }));
 
   useEffect(() => {
     const container = containerRef.current;
@@ -34,11 +45,17 @@ function SkyCanvas() {
     );
     camera.position.set(0, 0, 0.001);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true, // 📸 캡처 시 버퍼 보존 (없으면 검은 이미지)
+    });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
+
+    sceneRef.current = { renderer, scene, camera };
 
     // === OrbitControls ===
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -70,7 +87,7 @@ function SkyCanvas() {
     const celestialGroup = new THREE.Group();
     scene.add(celestialGroup);
 
-    // === 별 하이라이트 링 (선택 시 표시, 천구와 함께 회전) ===
+    // === 별 하이라이트 링 ===
     const ringCanvas = document.createElement("canvas");
     ringCanvas.width = ringCanvas.height = 128;
     const rctx = ringCanvas.getContext("2d");
@@ -105,7 +122,7 @@ function SkyCanvas() {
     applyRotation();
     const unsubObserver = useObserverStore.subscribe(applyRotation);
 
-    // === 선택 → 하이라이트 (별자리 선 + 별 링) ===
+    // === 선택 → 하이라이트 ===
     const unsubSelection = useSelectionStore.subscribe((state) => {
       if (constLayer) constLayer.setHighlight(state.selectedConstellation);
       if (state.selectedStar) {
@@ -121,7 +138,7 @@ function SkyCanvas() {
       }
     });
 
-    // === 클릭 → 별 우선, 없으면 별자리, 둘 다 없으면 해제 ===
+    // === 클릭 → 별 우선, 없으면 별자리 ===
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let downPos = null;
@@ -133,7 +150,7 @@ function SkyCanvas() {
       if (!downPos) return;
       const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
       downPos = null;
-      if (moved > 6) return; // 드래그 → 선택 안 함
+      if (moved > 6) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -163,7 +180,7 @@ function SkyCanvas() {
       })
       .catch((err) => console.error("[Stargazer] 별 로드 실패:", err));
 
-    // === 별자리 레이어 로드 ===
+    // === 별자리 로드 ===
     loadConstellations()
       .then(({ meta, constellations }) => {
         if (disposed) return;
@@ -200,6 +217,7 @@ function SkyCanvas() {
     // === Cleanup ===
     return () => {
       disposed = true;
+      sceneRef.current = null;
       unsubObserver();
       unsubSelection();
       cancelAnimationFrame(animationId);
@@ -228,6 +246,6 @@ function SkyCanvas() {
   }, []);
 
   return <div ref={containerRef} className="absolute inset-0" />;
-}
+});
 
 export default SkyCanvas;

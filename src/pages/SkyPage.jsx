@@ -1,13 +1,18 @@
+import { useRef } from "react";
 import AppShell from "../components/layout/AppShell";
 import SkyCanvas from "../components/sky/SkyCanvas";
 import ConstellationInfoPanel from "../components/sky/ConstellationInfoPanel";
 import StarInfoPanel from "../components/sky/StarInfoPanel";
+import CaptureButton from "../components/controls/CaptureButton";
 
 function SkyPage() {
+  const skyRef = useRef(null);
+
   return (
     <AppShell>
       <div className="relative h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden bg-linear-to-b from-night-900 to-night-950">
-        <SkyCanvas />
+        <SkyCanvas ref={skyRef} />
+        <CaptureButton skyRef={skyRef} />
         <ConstellationInfoPanel />
         <StarInfoPanel />
 
