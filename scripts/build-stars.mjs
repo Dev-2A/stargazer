@@ -110,6 +110,7 @@ function build() {
     ci: idx("ci"),
     spect: idx("spect"),
     con: idx("con"),
+    dist: idx("dist"),
   };
 
   const stars = [];
@@ -121,6 +122,12 @@ function build() {
     const id = parseInt(row[I.id]);
     if (id === 0) continue; // Sun(id=0) 제외
 
+    const dist = parseFloat(row[I.dist]);
+    const distPc =
+      Number.isFinite(dist) && dist > 0 && dist < 100000
+        ? Math.round(dist * 100) / 100
+        : null;
+
     stars.push([
       id,
       row[I.hip] ? parseInt(row[I.hip]) : null,
@@ -131,6 +138,7 @@ function build() {
       row[I.ci] ? Math.round(parseFloat(row[I.ci]) * 1000) / 1000 : null,
       row[I.spect] || null,
       row[I.con] || null,
+      distPc,
     ]);
   }
 
@@ -146,7 +154,7 @@ function build() {
       magLimit: MAG_LIMIT,
       count: stars.length,
     },
-    fields: ["id", "hip", "name", "ra", "dec", "mag", "ci", "spect", "con"],
+    fields: ["id", "hip", "name", "ra", "dec", "mag", "ci", "spect", "con", "dist"],
     rows: stars,
   };
 

@@ -99,3 +99,25 @@ export function magnitudeToSize(mag, magLimit = 6.5) {
   const s = 1.2 + (magLimit - mag) * 0.85;
   return Math.max(1.0, Math.min(9.0, s));
 }
+
+// 분광형 첫 글자 → 한국어 설명 (Harvard 분류 O B A F G K M)
+const SPECTRAL_DESC = {
+  O: "청색 초고온성",
+  B: "청백색 고온성",
+  A: "백색성",
+  F: "황백색성",
+  G: "황색성 (태양형)",
+  K: "주황색성",
+  M: "적색 저온성",
+};
+
+/**
+ * 분광형 문자열에서 한국어 설명 추출 (예: "G2V" → "황색성 (태양형)").
+ * @param {string|null} spect
+ * @returns {string|null}
+ */
+export function spectralDescription(spect) {
+  if (!spect) return null;
+  const cls = spect.trim()[0]?.toUpperCase();
+  return SPECTRAL_DESC[cls] || null;
+}

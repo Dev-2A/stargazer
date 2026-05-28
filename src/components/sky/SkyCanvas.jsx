@@ -9,7 +9,6 @@ import { createHorizon } from "./createHorizon";
 import {
   equatorialToHorizontalQuaternion,
   equatorialToVec3,
-  altAzFromVec3,
 } from "../../lib/celestial";
 import { useObserverStore } from "../../store/observerStore";
 import { useSelectionStore } from "../../store/selectionStore";
@@ -67,9 +66,31 @@ function SkyCanvas() {
     const horizon = createHorizon();
     scene.add(horizon.group);
 
-    // === 천구 그룹 (별 + 별자리가 함께 회전) ===
+    // === 천구 그룹 ===
     const celestialGroup = new THREE.Group();
     scene.add(celestialGroup);
+
+    // === 별 하이라이트 링 (선택 시 표시, 천구와 함께 회전) ===
+    const ringCanvas = document.createElement("canvas");
+    ringCanvas.width = ringCanvas.height = 128;
+    const rctx = ringCanvas.getContext("2d");
+    rctx.strokeStyle = "#9ecbff";
+    rctx.lineWidth = 7;
+    rctx.beginPath();
+    rctx.arc(64, 64, 48, 0, Math.PI * 2);
+    rctx.stroke();
+    const ringTex = new THREE.CanvasTexture(ringCanvas);
+    ringTex.colorSpace = THREE.SRGBColorSpace;
+    const ringMat = new THREE.SpriteMaterial({
+      map: ringTex,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const starRing = new THREE.Sprite(ringMat);
+    starRing.scale.set(4, 4, 1);
+    starRing.visible = false;
+    celestialGroup.add(starRing);
 
     // === 관측자/시간 → 그룹 회전 ===
     const applyRotation = () => {
@@ -84,12 +105,23 @@ function SkyCanvas() {
     applyRotation();
     const unsubObserver = useObserverStore.subscribe(applyRotation);
 
-    // === 선택 → 하이라이트 ===
+    // === 선택 → 하이라이트 (별자리 선 + 별 링) ===
     const unsubSelection = useSelectionStore.subscribe((state) => {
       if (constLayer) constLayer.setHighlight(state.selectedConstellation);
+      if (state.selectedStar) {
+        const v = equatorialToVec3(
+          state.selectedStar.ra,
+          state.selectedStar.dec,
+          99,
+        );
+        starRing.position.set(v.x, v.y, v.z);
+        starRing.visible = true;
+      } else {
+        starRing.visible = false;
+      }
     });
 
-    // === 클릭(드래그 아님) → 별자리 선택 ===
+    // === 클릭 → 별 우선, 없으면 별자리, 둘 다 없으면 해제 ===
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let downPos = null;
@@ -101,16 +133,23 @@ function SkyCanvas() {
       if (!downPos) return;
       const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
       downPos = null;
-      if (moved > 6) return; // 드래그로 간주 → 선택 안 함
-      if (!constLayer) return;
+      if (moved > 6) return; // 드래그 → 선택 안 함
 
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      celestialGroup.updateMatrixWorld(); // 최신 회전 반영
+      celestialGroup.updateMatrixWorld();
       raycaster.setFromCamera(pointer, camera);
-      const id = constLayer.raycast(raycaster);
-      useSelectionStore.getState().setSelectedConstellation(id); // 빈 곳 클릭 시 null → 선택 해제
+
+      const sel = useSelectionStore.getState();
+      const starHit = starField ? starField.raycast(raycaster) : null;
+      if (starHit) {
+        sel.selectStar(starHit.star);
+        return;
+      }
+      const conId = constLayer ? constLayer.raycast(raycaster) : null;
+      if (conId) sel.selectConstellation(conId);
+      else sel.clearSelection();
     };
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointerup", onPointerUp);
@@ -130,7 +169,6 @@ function SkyCanvas() {
         if (disposed) return;
         constLayer = createConstellationLayer(constellations);
         celestialGroup.add(constLayer.group);
-        // 로드 시점의 선택 상태 반영
         constLayer.setHighlight(
           useSelectionStore.getState().selectedConstellation,
         );
@@ -172,6 +210,9 @@ function SkyCanvas() {
       controls.dispose();
       scene.remove(horizon.group);
       horizon.dispose();
+      celestialGroup.remove(starRing);
+      ringTex.dispose();
+      ringMat.dispose();
       if (starField) {
         celestialGroup.remove(starField.points);
         starField.dispose();
