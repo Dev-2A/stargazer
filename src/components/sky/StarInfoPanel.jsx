@@ -50,7 +50,7 @@ function StarInfoPanel() {
               <button
                 onClick={clearSelection}
                 aria-label="닫기"
-                className="p-1.5 -mr-1 rounded-lg text-night-300 hover:bg-night-800 hover:text-astral-200 transition"
+                className="p-2.5 -mr-1 rounded-lg text-night-300 hover:bg-night-800 hover:text-astral-200 transition"
               >
                 <X size={18} />
               </button>

@@ -16,8 +16,11 @@ function SkyPage() {
         <ConstellationInfoPanel />
         <StarInfoPanel />
 
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-night-900/60 backdrop-blur border border-night-700 text-[11px] text-astral-300/80 pointer-events-none">
-          드래그로 둘러보기 · 휠로 줌 · 별/별자리 클릭
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-night-900/60 backdrop-blur border border-night-700 text-[11px] text-astral-300/80 pointer-events-none text-center">
+          <span className="hidden sm:inline">
+            드래그로 둘러보기 · 휠로 줌 · 클릭으로 선택
+          </span>
+          <span className="sm:hidden">드래그·핀치로 탐색 · 탭으로 선택</span>
         </div>
       </div>
     </AppShell>

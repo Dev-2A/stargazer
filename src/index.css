@@ -33,6 +33,16 @@
     "Segoe UI", sans-serif;
 }
 
+/* 네이티브 컨트롤(날짜 피커, 스크롤바 등)을 다크 기본으로 */
+:root {
+  color-scheme: dark;
+}
+
+/* 모바일 탭 시 파란 하이라이트 플래시 제거 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body,
 #root {

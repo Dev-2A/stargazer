@@ -15,14 +15,13 @@ import { useSelectionStore } from "../../store/selectionStore";
 
 const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
   const containerRef = useRef(null);
-  const sceneRef = useRef(null); // 캡처용 { renderer, scene, camera }
+  const sceneRef = useRef(null);
 
-  // 부모에 캡처 기능 노출
   useImperativeHandle(ref, () => ({
     captureCanvas() {
       const s = sceneRef.current;
       if (!s) return null;
-      s.renderer.render(s.scene, s.camera); // 캡처 직전 강제 렌더 (버퍼 보장)
+      s.renderer.render(s.scene, s.camera);
       return s.renderer.domElement;
     },
   }));
@@ -48,7 +47,7 @@ const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
-      preserveDrawingBuffer: true, // 📸 캡처 시 버퍼 보존 (없으면 검은 이미지)
+      preserveDrawingBuffer: true,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -68,7 +67,7 @@ const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
     controls.minPolarAngle = 0.01;
     controls.maxPolarAngle = Math.PI - 0.01;
 
-    // === 휠 → FOV 줌 ===
+    // === 휠 → FOV 줌 (데스크탑) ===
     const handleWheel = (e) => {
       e.preventDefault();
       const delta = Math.sign(e.deltaY) * 2;
@@ -138,19 +137,51 @@ const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
       }
     });
 
-    // === 클릭 → 별 우선, 없으면 별자리 ===
+    // === 포인터: 탭 선택 + 핀치 줌 (멀티터치 대응) ===
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const activePointers = new Map();
     let downPos = null;
+    let pinchPrevDist = null;
+
+    const pointerDistance = () => {
+      const pts = [...activePointers.values()];
+      return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    };
 
     const onPointerDown = (e) => {
-      downPos = { x: e.clientX, y: e.clientY };
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size === 1) {
+        downPos = { x: e.clientX, y: e.clientY };
+      } else {
+        downPos = null; // 멀티터치 → 탭 선택 취소
+        if (activePointers.size === 2) pinchPrevDist = pointerDistance();
+      }
     };
+
+    const onPointerMove = (e) => {
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size === 2 && pinchPrevDist != null) {
+        const dist = pointerDistance();
+        if (dist > 0) {
+          // 손가락 벌리면 dist↑ → ratio<1 → FOV↓ (줌 인)
+          const ratio = pinchPrevDist / dist;
+          camera.fov = THREE.MathUtils.clamp(camera.fov * ratio, 30, 90);
+          camera.updateProjectionMatrix();
+          pinchPrevDist = dist;
+        }
+      }
+    };
+
     const onPointerUp = (e) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) pinchPrevDist = null;
+
       if (!downPos) return;
       const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
       downPos = null;
-      if (moved > 6) return;
+      if (moved > 6) return; // 드래그 → 선택 안 함
 
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -168,8 +199,18 @@ const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
       if (conId) sel.selectConstellation(conId);
       else sel.clearSelection();
     };
-    renderer.domElement.addEventListener("pointerdown", onPointerDown);
-    renderer.domElement.addEventListener("pointerup", onPointerUp);
+
+    const onPointerCancel = (e) => {
+      activePointers.delete(e.pointerId);
+      if (activePointers.size < 2) pinchPrevDist = null;
+      downPos = null;
+    };
+
+    const el = renderer.domElement;
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointercancel", onPointerCancel);
 
     // === 별 로드 ===
     loadStars()
@@ -222,9 +263,11 @@ const SkyCanvas = forwardRef(function SkyCanvas(_, ref) {
       unsubSelection();
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
-      renderer.domElement.removeEventListener("wheel", handleWheel);
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-      renderer.domElement.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerCancel);
       controls.dispose();
       scene.remove(horizon.group);
       horizon.dispose();
