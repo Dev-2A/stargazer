@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, Star, Info } from "lucide-react";
+import { Sparkles, Info } from "lucide-react";
 import LocationInput from "../controls/LocationInput";
 import TimeControls from "../controls/TimeControls";
+import FavoritesList from "../controls/FavoritesList";
 
 function GithubMark({ size = 12 }) {
   return (
@@ -20,10 +21,6 @@ function GithubMark({ size = 12 }) {
 const NAV_ITEMS = [
   { to: "/", label: "천구", icon: Sparkles },
   { to: "/about", label: "소개", icon: Info },
-];
-
-const PLACEHOLDERS = [
-  { icon: Star, label: "즐겨찾기", hint: "Step 16에서 IndexedDB 저장" },
 ];
 
 function Sidebar({ onNavigate }) {
@@ -87,20 +84,7 @@ function Sidebar({ onNavigate }) {
 
         <div className="mx-2 h-px bg-night-800/60" />
 
-        {PLACEHOLDERS.map(({ icon: Icon, label, hint }) => (
-          <div
-            key={label}
-            className="px-3 py-3 rounded-lg border border-dashed border-night-700 bg-night-950/40"
-          >
-            <div className="flex items-center gap-2 text-sm text-night-300">
-              <Icon size={14} strokeWidth={2} className="text-night-500" />
-              <span className="font-medium">{label}</span>
-            </div>
-            <p className="mt-1 text-[10px] text-night-500 leading-relaxed">
-              {hint}
-            </p>
-          </div>
-        ))}
+        <FavoritesList />
       </div>
 
       {/* 푸터 */}
