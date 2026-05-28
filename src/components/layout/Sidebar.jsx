@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { Sparkles, Clock, Star, Info } from "lucide-react";
+import { Sparkles, Star, Info } from "lucide-react";
 import LocationInput from "../controls/LocationInput";
+import TimeControls from "../controls/TimeControls";
 
 function GithubMark({ size = 12 }) {
   return (
@@ -22,7 +23,6 @@ const NAV_ITEMS = [
 ];
 
 const PLACEHOLDERS = [
-  { icon: Clock, label: "시간", hint: "Step 15에서 슬라이더 + 피커" },
   { icon: Star, label: "즐겨찾기", hint: "Step 16에서 IndexedDB 저장" },
 ];
 
@@ -80,6 +80,12 @@ function Sidebar({ onNavigate }) {
         </p>
 
         <LocationInput />
+
+        <div className="mx-2 h-px bg-night-800/60" />
+
+        <TimeControls />
+
+        <div className="mx-2 h-px bg-night-800/60" />
 
         {PLACEHOLDERS.map(({ icon: Icon, label, hint }) => (
           <div

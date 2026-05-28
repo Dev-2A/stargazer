@@ -1,6 +1,5 @@
 import AppShell from "../components/layout/AppShell";
 import SkyCanvas from "../components/sky/SkyCanvas";
-import ObserverDebugPanel from "../components/controls/ObserverDebugPanel";
 import ConstellationInfoPanel from "../components/sky/ConstellationInfoPanel";
 import StarInfoPanel from "../components/sky/StarInfoPanel";
 
@@ -9,7 +8,6 @@ function SkyPage() {
     <AppShell>
       <div className="relative h-[calc(100dvh-3.5rem)] lg:h-screen overflow-hidden bg-linear-to-b from-night-900 to-night-950">
         <SkyCanvas />
-        <ObserverDebugPanel />
         <ConstellationInfoPanel />
         <StarInfoPanel />
 
